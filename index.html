@@ -2,37 +2,113 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Curriculo</title>
+  <title>Visualizador de currículo</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 40px;
-      background-color: #f0f0f0;
-    }
-    .container {
-      max-width: 900px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 12px rgba(0,0,0,0.1);
-    }
-    h1 {
-      text-align: center;
-      color: #444;
-    }
-    iframe {
-      width: 100%;
-      height: 700px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
+    body { font-family: sans-serif; margin: 20px; text-align: center; }
+    #pdf-container { display: inline-block; text-align: left; }
+    canvas { border: 1px solid #ccc; margin-top: 10px; display: block; max-width: 100%; }
+    #controls { margin-top: 10px; }
+    button { margin: 0 5px; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Meu Currículo</h1>
-    <iframe src="arquivo.pdf" width="100%" ?autoplay=1></iframe>
+  <div id="controls">
+    <button id="prev">⬅ Anterior</button>
+    <span>Página: <span id="page-num">1</span> / <span id="page-count">?</span></span>
+    <button id="next">Próxima ➡</button>
+    <button id="download">Baixar</button>
+    <button id="print">Imprimir</button>
   </div>
+
+  <div id="pdf-container">
+    <canvas id="pdf-canvas"></canvas>
+  </div>
+
+  <!-- PDF.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    const url = 'arquivo.pdf'; // nome do seu arquivo PDF local
+
+    const canvas = document.getElementById('pdf-canvas');
+    const ctx = canvas.getContext('2d');
+    const pageNumSpan = document.getElementById('page-num');
+    const pageCountSpan = document.getElementById('page-count');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+    const downloadBtn = document.getElementById('download');
+    const printBtn = document.getElementById('print');
+
+    let pdfDoc = null;
+    let pageNum = 1;
+    let totalPages = 0;
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    function renderPage(num) {
+      pdfDoc.getPage(num).then(function(page) {
+        const scale = 1.5;
+        const viewport = page.getViewport({ scale: scale });
+
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: viewport
+        };
+        page.render(renderContext);
+
+        pageNumSpan.textContent = num;
+      });
+    }
+
+    function queueRenderPage(num) {
+      if (num >= 1 && num <= totalPages) {
+        pageNum = num;
+        renderPage(pageNum);
+      }
+    }
+
+    prevBtn.addEventListener('click', () => {
+      if (pageNum > 1) {
+        queueRenderPage(pageNum - 1);
+      }
+    });
+
+    nextBtn.addEventListener('click', () => {
+      if (pageNum < totalPages) {
+        queueRenderPage(pageNum + 1);
+      }
+    });
+
+    // Baixar o PDF
+    downloadBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'curriculo.pdf'; // nome do arquivo ao fazer o download
+      link.click();
+    });
+
+    // Imprimir o PDF
+    printBtn.addEventListener('click', () => {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.top = '-9999px';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.contentWindow.print();
+    });
+
+    // Carrega o PDF
+    pdfjsLib.getDocument(url).promise.then(function(pdfDoc_) {
+      pdfDoc = pdfDoc_;
+      totalPages = pdfDoc.numPages;
+      pageCountSpan.textContent = totalPages;
+
+      renderPage(pageNum);
+    }).catch(err => {
+      console.error('Erro ao carregar o PDF:', err);
+    });
+  </script>
 </body>
 </html>
